@@ -93,7 +93,7 @@ All fields optional. Missing fields use defaults.
 Each rule has:
 
 - `id`: stable identifier used for overrides across scopes.
-- `patterns`: files to match (glob by default, regex if `regex: true`).
+- `patterns`: files to match (glob by default, regex if `regex: true`). Glob semantics: patterns containing `/` match the full relative path; patterns without `/` match basename only.
 - `allowedPatterns`: exceptions.
 - `protection`:
   - `noAccess`: block `read`, `write`, `edit`, `bash`, `grep`, `find`, `ls`

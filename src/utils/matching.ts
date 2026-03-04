@@ -8,6 +8,7 @@
  * Both support `regex: true` for full regex matching.
  */
 
+import { matchesGlob } from "node:path";
 import type { PatternConfig } from "../config";
 import { pendingWarnings } from "./warnings";
 
@@ -17,51 +18,34 @@ export interface CompiledPattern {
 }
 
 /**
- * Convert a glob pattern to a regex.
- * `*` matches any non-`/` chars, `?` matches a single char.
- * The rest is escaped.
+ * Normalize file paths before matching.
+ * - Use forward slashes for cross-platform consistency.
+ * - Drop leading "./" segments.
+ * - Collapse duplicate slashes.
  */
-export function globToRegex(glob: string): RegExp {
-  let regex = "";
-  for (const ch of glob) {
-    switch (ch) {
-      case "*":
-        regex += "[^/]*";
-        break;
-      case "?":
-        regex += "[^/]";
-        break;
-      case ".":
-      case "(":
-      case ")":
-      case "+":
-      case "^":
-      case "$":
-      case "{":
-      case "}":
-      case "|":
-      case "\\":
-      case "[":
-      case "]":
-        regex += `\\${ch}`;
-        break;
-      default:
-        regex += ch;
-    }
-  }
-  return new RegExp(`^${regex}$`, "i");
+export function normalizeFilePath(input: string): string {
+  const normalized = input
+    .replaceAll("\\", "/")
+    .replace(/^(?:\.\/)+/, "")
+    .replace(/\/{2,}/g, "/");
+  return normalized;
 }
 
 /**
  * Compile a single pattern for file-context matching.
- * Default: glob against the basename of the path.
- * regex: true -> full regex (case-insensitive) against the full path.
+ * Default: glob matching.
+ * - If pattern includes `/`, match full normalized relative path.
+ * - Otherwise, match basename only (backward compatible).
+ * regex: true -> full regex (case-insensitive) against normalized path.
  */
 export function compileFilePattern(config: PatternConfig): CompiledPattern {
   if (config.regex) {
     try {
       const re = new RegExp(config.pattern, "i");
-      return { test: (input) => re.test(input), source: config };
+      return {
+        test: (input) => re.test(normalizeFilePath(input)),
+        source: config,
+      };
     } catch {
       pendingWarnings.push(
         `Invalid regex in guardrails config: ${config.pattern}`,
@@ -70,12 +54,16 @@ export function compileFilePattern(config: PatternConfig): CompiledPattern {
     }
   }
 
-  const re = globToRegex(config.pattern);
+  const matchFullPath = config.pattern.includes("/");
+
   return {
     test: (input) => {
-      // Match against basename
-      const basename = input.split("/").pop() ?? input;
-      return re.test(basename);
+      const normalized = normalizeFilePath(input);
+      const candidate = matchFullPath
+        ? normalized
+        : (normalized.split("/").pop() ?? normalized);
+
+      return matchesGlob(candidate, config.pattern);
     },
     source: config,
   };

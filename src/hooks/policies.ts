@@ -1,11 +1,15 @@
 import { stat } from "node:fs/promises";
-import { resolve } from "node:path";
+import { isAbsolute, relative, resolve } from "node:path";
 import { parse } from "@aliou/sh";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type { PolicyRule, Protection, ResolvedConfig } from "../config";
 import { emitBlocked } from "../utils/events";
 import { expandGlob, hasGlobChars } from "../utils/glob-expander";
-import { type CompiledPattern, compileFilePatterns } from "../utils/matching";
+import {
+  type CompiledPattern,
+  compileFilePatterns,
+  normalizeFilePath,
+} from "../utils/matching";
 import { walkCommands, wordToString } from "../utils/shell-utils";
 import { pendingWarnings } from "../utils/warnings";
 
@@ -113,6 +117,16 @@ function maybePathLike(token: string): boolean {
   );
 }
 
+function normalizeTargetForPolicy(filePath: string, cwd: string): string {
+  const absolute = resolve(cwd, filePath);
+  const rel = relative(cwd, absolute);
+
+  const candidate =
+    rel && !rel.startsWith("..") && !isAbsolute(rel) ? rel : absolute;
+
+  return normalizeFilePath(candidate);
+}
+
 function matchesAnyPolicyPattern(
   filePath: string,
   rules: CompiledRule[],
@@ -135,6 +149,7 @@ async function expandCandidate(candidate: string): Promise<string[]> {
 async function extractBashFileTargets(
   command: string,
   rules: CompiledRule[],
+  cwd: string,
 ): Promise<string[]> {
   const targets = new Set<string>();
 
@@ -143,8 +158,9 @@ async function extractBashFileTargets(
 
     const expanded = await expandCandidate(candidate);
     for (const file of expanded) {
-      if (matchesAnyPolicyPattern(file, rules)) {
-        targets.add(file);
+      const normalized = normalizeTargetForPolicy(file, cwd);
+      if (matchesAnyPolicyPattern(normalized, rules)) {
+        targets.add(normalized);
       }
     }
   };
@@ -182,8 +198,9 @@ async function extractBashFileTargets(
 
       const expanded = await expandCandidate(token);
       for (const file of expanded) {
-        if (matchesAnyPolicyPattern(file, rules)) {
-          targets.add(file);
+        const normalized = normalizeTargetForPolicy(file, cwd);
+        if (matchesAnyPolicyPattern(normalized, rules)) {
+          targets.add(normalized);
         }
       }
     }
@@ -259,14 +276,16 @@ export function setupPoliciesHook(pi: ExtensionAPI, config: ResolvedConfig) {
       targets = extractPathTarget(event.input);
     } else if (toolName === "bash") {
       const command = String(event.input.command ?? "");
-      targets = await extractBashFileTargets(command, compiledRules);
+      targets = await extractBashFileTargets(command, compiledRules, ctx.cwd);
     } else {
       return;
     }
 
     for (const target of targets) {
+      const normalizedTarget = normalizeTargetForPolicy(target, ctx.cwd);
+
       const effective = await getEffectiveProtection(
-        target,
+        normalizedTarget,
         compiledRules,
         ctx.cwd,
       );
@@ -276,11 +295,11 @@ export function setupPoliciesHook(pi: ExtensionAPI, config: ResolvedConfig) {
       if (!blockedTools.has(toolName)) continue;
 
       ctx.ui.notify(
-        `Blocked ${toolName} on protected file: ${target} (${effective.ruleId})`,
+        `Blocked ${toolName} on protected file: ${normalizedTarget} (${effective.ruleId})`,
         "warning",
       );
 
-      const reason = effective.blockMessage.replace("{file}", target);
+      const reason = effective.blockMessage.replace("{file}", normalizedTarget);
 
       emitBlocked(pi, {
         feature: "policies",
