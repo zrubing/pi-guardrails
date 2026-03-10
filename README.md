@@ -91,6 +91,7 @@ Use `/guardrails:settings` to edit config interactively.
       { "pattern": "*.yml" },
       { "pattern": "*.properties" }
     ],
+    "allowedPatterns": [],
     "redactValue": "[REDACTED]"
   }
 }
@@ -161,12 +162,28 @@ Config fields:
 
 - `features.structureOnlyRead` (boolean)
 - `structureOnlyRead.patterns` (file glob/regex patterns)
+- `structureOnlyRead.allowedPatterns` (exceptions; matched files return original read result)
 - `structureOnlyRead.redactValue` (replacement value for scalar leaves)
 
 Current behavior:
 
 - `.yaml` / `.yml`: parses YAML, preserves nesting/arrays, redacts scalar values.
 - `.properties`: preserves keys, returns `key=<redactValue>` lines.
+
+Project-level override example (`.pi/extensions/guardrails.json`):
+
+```json
+{
+  "features": { "structureOnlyRead": true },
+  "structureOnlyRead": {
+    "patterns": [{ "pattern": "*.yaml" }, { "pattern": "*.properties" }],
+    "allowedPatterns": [{ "pattern": "config/dev-safe.yaml" }],
+    "redactValue": "[REDACTED]"
+  }
+}
+```
+
+In this example, `config/dev-safe.yaml` will return normal content, while other matched files are still redacted.
 
 ## Migration notes
 

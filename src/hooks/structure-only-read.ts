@@ -132,6 +132,9 @@ export function setupStructureOnlyReadHook(
   if (!config.features.structureOnlyRead) return;
 
   const patterns = compileFilePatterns(config.structureOnlyRead.patterns);
+  const allowedPatterns = compileFilePatterns(
+    config.structureOnlyRead.allowedPatterns,
+  );
   const redactValue = config.structureOnlyRead.redactValue;
 
   pi.on("tool_result", async (event, ctx) => {
@@ -142,6 +145,7 @@ export function setupStructureOnlyReadHook(
 
     const normalized = normalizeTargetForPolicy(pathInput, ctx.cwd);
     if (!shouldTransform(normalized, patterns)) return;
+    if (shouldTransform(normalized, allowedPatterns)) return;
 
     const transformed = event.content.map((part) => {
       if (part.type !== "text") return part;

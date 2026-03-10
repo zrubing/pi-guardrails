@@ -88,6 +88,7 @@ export interface GuardrailsConfig {
   };
   structureOnlyRead?: {
     patterns?: PatternConfig[];
+    allowedPatterns?: PatternConfig[];
     redactValue?: string;
   };
 }
@@ -117,6 +118,7 @@ export interface ResolvedConfig {
   };
   structureOnlyRead: {
     patterns: PatternConfig[];
+    allowedPatterns: PatternConfig[];
     redactValue: string;
   };
 }
@@ -256,6 +258,7 @@ const DEFAULT_CONFIG: ResolvedConfig = {
       { pattern: "*.yml" },
       { pattern: "*.properties" },
     ],
+    allowedPatterns: [],
     redactValue: "[REDACTED]",
   },
 };
