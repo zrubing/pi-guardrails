@@ -59,6 +59,7 @@ export interface GuardrailsConfig {
   features?: {
     policies?: boolean;
     permissionGate?: boolean;
+    structureOnlyRead?: boolean;
     // Deprecated. Kept only for migration.
     protectEnvFiles?: boolean;
   };
@@ -85,6 +86,10 @@ export interface GuardrailsConfig {
     explainModel?: string;
     explainTimeout?: number;
   };
+  structureOnlyRead?: {
+    patterns?: PatternConfig[];
+    redactValue?: string;
+  };
 }
 
 export interface ResolvedConfig {
@@ -93,6 +98,7 @@ export interface ResolvedConfig {
   features: {
     policies: boolean;
     permissionGate: boolean;
+    structureOnlyRead: boolean;
   };
   policies: {
     rules: PolicyRule[];
@@ -108,6 +114,10 @@ export interface ResolvedConfig {
     explainCommands: boolean;
     explainModel: string | null;
     explainTimeout: number;
+  };
+  structureOnlyRead: {
+    patterns: PatternConfig[];
+    redactValue: string;
   };
 }
 
@@ -190,6 +200,7 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   features: {
     policies: true,
     permissionGate: true,
+    structureOnlyRead: false,
   },
   policies: {
     rules: [
@@ -238,6 +249,14 @@ const DEFAULT_CONFIG: ResolvedConfig = {
     explainCommands: false,
     explainModel: null,
     explainTimeout: 5000,
+  },
+  structureOnlyRead: {
+    patterns: [
+      { pattern: "*.yaml" },
+      { pattern: "*.yml" },
+      { pattern: "*.properties" },
+    ],
+    redactValue: "[REDACTED]",
   },
 };
 

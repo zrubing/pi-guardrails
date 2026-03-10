@@ -23,6 +23,7 @@ pi install git:github.com/aliou/pi-guardrails
 - **policies**: named file-protection rules with per-rule protection levels.
 - **permission-gate**: detects dangerous bash commands and asks for confirmation.
 - **optional command explainer**: can call a small LLM to explain a dangerous command inline in the confirmation dialog.
+- **optional structure-only read**: can transform matched YAML/Properties reads so only keys/shape are exposed and values are redacted.
 
 ## Config locations
 
@@ -43,7 +44,8 @@ Use `/guardrails:settings` to edit config interactively.
   "enabled": true,
   "features": {
     "policies": true,
-    "permissionGate": true
+    "permissionGate": true,
+    "structureOnlyRead": false
   },
   "policies": {
     "rules": [
@@ -82,6 +84,14 @@ Use `/guardrails:settings` to edit config interactively.
     "explainCommands": false,
     "explainModel": null,
     "explainTimeout": 5000
+  },
+  "structureOnlyRead": {
+    "patterns": [
+      { "pattern": "*.yaml" },
+      { "pattern": "*.yml" },
+      { "pattern": "*.properties" }
+    ],
+    "redactValue": "[REDACTED]"
   }
 }
 ```
@@ -142,6 +152,21 @@ Config fields:
 - `permissionGate.explainTimeout` (ms)
 
 Failures/timeouts degrade gracefully: dialog still shows without explanation.
+
+## Structure-only read (opt-in)
+
+When enabled, Guardrails intercepts `read` results for matched files and returns redacted structure instead of raw values.
+
+Config fields:
+
+- `features.structureOnlyRead` (boolean)
+- `structureOnlyRead.patterns` (file glob/regex patterns)
+- `structureOnlyRead.redactValue` (replacement value for scalar leaves)
+
+Current behavior:
+
+- `.yaml` / `.yml`: parses YAML, preserves nesting/arrays, redacts scalar values.
+- `.properties`: preserves keys, returns `key=<redactValue>` lines.
 
 ## Migration notes
 

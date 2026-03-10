@@ -40,6 +40,11 @@ const FEATURE_UI: Record<FeatureKey, { label: string; description: string }> = {
     description:
       "Prompt for confirmation on dangerous commands (rm -rf, sudo, etc.)",
   },
+  structureOnlyRead: {
+    label: "Structure-only read",
+    description:
+      "For matching YAML/properties files, return key structure with redacted values",
+  },
 };
 
 const POLICY_EXAMPLES: Array<{
